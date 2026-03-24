@@ -1,7 +1,27 @@
+using Pulse.Backend;
 using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<MonitoringService>();
+builder.Services.AddSingleton<RuleEngine>();
+builder.Services.AddSingleton<ProfileManager>();
+builder.Services.AddHostedService<AutoSwitchService>();
+builder.Services.AddSingleton<AutoModeService>();
+
+//CORS fix
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
+app.UseCors();
 
 PerformanceCounter? cpuCounter = null;
 
@@ -13,15 +33,64 @@ if (OperatingSystem.IsWindows())
         "_Total"
     );
 
-    cpuCounter.NextValue(); // warm-up
+    cpuCounter.NextValue(); 
 }
 
-app.MapGet("/status", () =>
+app.MapGet("/profiles", (ProfileManager pm) =>
+{
+    return Results.Ok(new
+    {
+        currentProfileId = pm.GetCurrentProfile(),
+        profiles = pm.Profiles
+    });
+});
+
+app.MapPost("/apply-profile/{id}", (string id, ProfileManager pm) =>
+{
+    var profile = pm.Profiles.FirstOrDefault(p => p.Id == id);
+
+    if (profile == null)
+        return Results.NotFound("Profile not found");
+
+    var changed = pm.ApplyProfile(profile.Id);
+
+    return Results.Ok(new
+    {
+        message = changed ? $"Profile '{profile.Name}' applied" : "Already active",
+        currentProfileId = pm.GetCurrentProfile()
+    });
+
+});
+
+app.MapPost("/auto-switch", (RuleEngine rule, ProfileManager pm) =>
+{
+    var decided = rule.DecideProfile();
+    pm.ApplyProfile(decided);
+
+    return Results.Ok(new
+    {
+        currentProfileId = pm.GetCurrentProfile()
+    });
+});
+app.MapPost("/auto-mode/{state}", (string state, AutoModeService auto) =>
+{
+    bool enable = state.Equals("on", StringComparison.OrdinalIgnoreCase);
+    auto.SetEnabled(enable);
+
+    return Results.Ok(new
+    {
+        autoMode = enable
+    });
+});
+
+
+app.MapGet("/status", async() =>
 {
     float cpuUsage = 0;
 
     if (OperatingSystem.IsWindows() && cpuCounter != null)
     {
+        await Task.Delay(100);
         cpuUsage = cpuCounter.NextValue();
     }
 
@@ -40,29 +109,31 @@ app.MapGet("/status", () =>
     });
 });
 
+
+
 app.MapGet("/processes", () =>
 {
-    var processList = new List<object>();
+    var processList = new List<ProcessInfo>();
 
     foreach (var process in Process.GetProcesses())
     {
         try
         {
-            processList.Add(new
+            processList.Add(new ProcessInfo
             {
-                name = process.ProcessName,
-                id = process.Id,
-                cpuTimeSeconds = Math.Round(process.TotalProcessorTime.TotalSeconds, 2),
-                memoryMB = Math.Round(process.WorkingSet64 / (1024.0 * 1024.0), 2)
+                Name = process.ProcessName,
+                Id = process.Id,
+                CpuTimeSeconds = Math.Round(process.TotalProcessorTime.TotalSeconds, 2),
+                MemoryMB = Math.Round(process.WorkingSet64 / (1024.0 * 1024.0), 2)
             });
         }
-        catch
-        {
-            // Some system processes deny access – ignore safely
-        }
+        catch { }
     }
 
-    return Results.Ok(processList);
+    return Results.Ok(
+        processList.OrderByDescending(p => p.MemoryMB)
+        .Take(20)
+    );
 });
 
 
@@ -98,7 +169,17 @@ app.MapGet("/heavy-processes", () =>
         thresholdMB = memoryThresholdMb,
         heavyProcesses
     });
+
+
 });
+app.MapGet("/auto-mode", (AutoModeService auto) =>
+{
+    return Results.Ok(new
+    {
+        enabled = auto.IsEnabled()
+    });
+});
+
 
 
 app.Run();
