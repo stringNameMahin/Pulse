@@ -1,4 +1,4 @@
-﻿namespace Pulse.Backend
+﻿namespace Pulse.Backend.Services
 {
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.DependencyInjection;

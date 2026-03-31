@@ -1,4 +1,4 @@
-﻿namespace Pulse.Backend
+﻿namespace Pulse.Backend.Services
 {
     using System.Diagnostics;
 

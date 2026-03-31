@@ -1,4 +1,6 @@
-﻿namespace Pulse.Backend
+﻿using Pulse.Backend.Services;
+
+namespace Pulse.Backend
 {
     public class RuleEngine
     {

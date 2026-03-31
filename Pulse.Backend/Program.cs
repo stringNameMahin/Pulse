@@ -1,4 +1,5 @@
 using Pulse.Backend;
+using Pulse.Backend.Services;
 using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,7 @@ builder.Services.AddSingleton<RuleEngine>();
 builder.Services.AddSingleton<ProfileManager>();
 builder.Services.AddHostedService<AutoSwitchService>();
 builder.Services.AddSingleton<AutoModeService>();
+builder.Services.AddSingleton<PowerPlanService>();
 
 //CORS fix
 builder.Services.AddCors(options =>
@@ -52,14 +54,30 @@ app.MapPost("/apply-profile/{id}", (string id, ProfileManager pm) =>
     if (profile == null)
         return Results.NotFound("Profile not found");
 
-    var changed = pm.ApplyProfile(profile.Id);
-
-    return Results.Ok(new
+    try
     {
-        message = changed ? $"Profile '{profile.Name}' applied" : "Already active",
-        currentProfileId = pm.GetCurrentProfile()
-    });
+        var changed = pm.ApplyProfile(profile.Id);
+        var appliedWithAdmin = pm.ApplyProfile(profile.Id);
 
+        return Results.Ok(new
+        {
+            success = true,
+            requiresAdmin = !appliedWithAdmin,
+            message = appliedWithAdmin
+                ? $"Profile '{profile.Name}' applied"
+                : "Profile applied (limited mode - admin required for full optimization)",
+            currentProfileId = pm.GetCurrentProfile()
+        });
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return Results.Ok(new
+        {
+            success = false,
+            requiresAdmin = true,
+            message = "Admin privileges required"
+        });
+    }
 });
 
 app.MapPost("/auto-switch", (RuleEngine rule, ProfileManager pm) =>
