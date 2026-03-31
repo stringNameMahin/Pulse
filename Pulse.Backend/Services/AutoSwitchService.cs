@@ -18,20 +18,20 @@
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                await Task.Delay(2000, stoppingToken);
+
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
 
                     var autoMode = scope.ServiceProvider.GetRequiredService<AutoModeService>();
 
-                    if (!autoMode.IsEnabled())
-                    {
-                        await Task.Delay(5000, stoppingToken);
+                    if (!autoMode.IsEnabled() || autoMode.IsInManualOverride())
                         continue;
-                    }
 
                     var ruleEngine = scope.ServiceProvider.GetRequiredService<RuleEngine>();
                     var profileManager = scope.ServiceProvider.GetRequiredService<ProfileManager>();
+
                     var decidedProfile = ruleEngine.DecideProfile();
 
                     profileManager.ApplyProfile(decidedProfile);
@@ -40,8 +40,6 @@
                 {
                     Console.WriteLine($"[Pulse ERROR] {ex.Message}");
                 }
-
-                await Task.Delay(5000, stoppingToken); // 5 sec loop
             }
         }
     }

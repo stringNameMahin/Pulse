@@ -1,0 +1,9 @@
+[
+  {
+    "TriggerProcess": "opera",
+    "TargetProfile": "high",
+    "CloseApps": [
+      "chrome"
+    ]
+  }
+]

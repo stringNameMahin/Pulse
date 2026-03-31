@@ -1,30 +1,48 @@
 ﻿using Pulse.Backend.Services;
-using System.Diagnostics;
 
 namespace Pulse.Backend
 {
     public class ProfileManager
     {
         private string _currentProfileId = "balanced";
+
         private readonly MonitoringService _monitoring;
         private readonly PowerPlanService _powerService;
-        public ProfileManager(MonitoringService monitoring, PowerPlanService powerService)
+        private readonly ProcessOptimizerService _optimizer;
+        private readonly PriorityControlService _priorityControl;
+        private readonly UserPriorityService _userPriority;
+        private readonly CpuAffinityService _affinity;
+        private readonly AffinityControlService _affinityControl;
+
+        public ProfileManager(
+            MonitoringService monitoring,
+            PowerPlanService powerService,
+            ProcessOptimizerService optimizer,
+            PriorityControlService priorityControl,
+            UserPriorityService userPriority,
+            CpuAffinityService affinity,
+            AffinityControlService affinityControl)
         {
             _monitoring = monitoring;
             _powerService = powerService;
+            _optimizer = optimizer;
+            _priorityControl = priorityControl;
+            _userPriority = userPriority;
+            _affinity = affinity;
+            _affinityControl = affinityControl;
         }
 
         public List<PerformanceProfile> Profiles { get; } = new()
-    {
-        new("balanced", "Balanced"),
-        new("high", "High Performance")
-    };
+        {
+            new("balanced", "Balanced"),
+            new("high", "High Performance")
+        };
 
         public string GetCurrentProfile() => _currentProfileId;
 
         public bool ApplyProfile(string id)
         {
-            if (_currentProfileId == id) return false;
+            bool isSameProfile = _currentProfileId == id;
 
             bool isAdmin = _powerService.IsAdministrator();
 
@@ -33,10 +51,14 @@ namespace Pulse.Backend
                 Console.WriteLine("[Pulse] Running without admin — power plan changes will be skipped");
             }
 
-            _currentProfileId = id;
-            Console.WriteLine($"[Pulse] Switched to profile: {id}");
+            if (!isSameProfile)
+            {
+                _currentProfileId = id;
+                Console.WriteLine($"[Pulse] Switched to profile: {id}");
+            }
 
             ApplySystemActions(id, isAdmin);
+            Console.WriteLine($"[Pulse DEBUG] Requested: {id}, Current: {_currentProfileId}, Admin: {isAdmin}");
 
             return isAdmin;
         }
@@ -53,23 +75,62 @@ namespace Pulse.Backend
                 }
             }
 
-            var processes = _monitoring.GetHeavyProcesses();
+            var foreground = _optimizer.GetForegroundProcess();
+            var apps = _userPriority.GetApps();
 
-            foreach (var process in processes)
+            var processedIds = new HashSet<int>();
+
+            if (_priorityControl.IsEnabled())
             {
-                try
+                if (foreground != null)
                 {
-                    if (process.Id == 0 || process.ProcessName.ToLower().Contains("system"))
-                        continue;
-
-                    if (profileId == "high")
-                        process.PriorityClass = ProcessPriorityClass.AboveNormal;
-                    else
-                        process.PriorityClass = ProcessPriorityClass.Normal;
+                    _optimizer.ApplyPriority(foreground, profileId);
+                    processedIds.Add(foreground.Id);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine($"[Pulse Warning] Failed to change priority for {process.ProcessName}: {ex.Message}");
+                    Console.WriteLine("[Pulse] No foreground process detected");
+                }
+
+                foreach (var process in System.Diagnostics.Process.GetProcesses())
+                {
+                    try
+                    {
+                        var name = process.ProcessName.ToLower();
+
+                        if (apps.Contains(name) && !processedIds.Contains(process.Id))
+                        {
+                            _optimizer.ApplyPriority(process, profileId);
+                            processedIds.Add(process.Id);
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            if (_affinityControl.IsEnabled())
+            {
+                var affinityProcessed = new HashSet<int>();
+
+                if (foreground != null)
+                {
+                    _affinity.ApplyAffinity(foreground, profileId);
+                    affinityProcessed.Add(foreground.Id);
+                }
+
+                foreach (var process in System.Diagnostics.Process.GetProcesses())
+                {
+                    try
+                    {
+                        var name = process.ProcessName.ToLower();
+
+                        if (apps.Contains(name) && !affinityProcessed.Contains(process.Id))
+                        {
+                            _affinity.ApplyAffinity(process, profileId);
+                            affinityProcessed.Add(process.Id);
+                        }
+                    }
+                    catch { }
                 }
             }
         }

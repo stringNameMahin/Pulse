@@ -7,6 +7,11 @@ namespace Pulse.Backend.Services
     {
         public bool IsAdministrator()
         {
+            // Dev mode override for testing
+            #if DEBUG
+            return true;
+            #endif
+
             using var identity = WindowsIdentity.GetCurrent();
             var principal = new WindowsPrincipal(identity);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);

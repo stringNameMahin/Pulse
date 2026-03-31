@@ -1,4 +1,4 @@
-using Pulse.Backend;
+﻿using Pulse.Backend;
 using Pulse.Backend.Services;
 using System.Diagnostics;
 
@@ -10,6 +10,13 @@ builder.Services.AddSingleton<ProfileManager>();
 builder.Services.AddHostedService<AutoSwitchService>();
 builder.Services.AddSingleton<AutoModeService>();
 builder.Services.AddSingleton<PowerPlanService>();
+builder.Services.AddSingleton<ProcessOptimizerService>();
+builder.Services.AddSingleton<PriorityControlService>();
+builder.Services.AddSingleton<UserPriorityService>();
+builder.Services.AddSingleton<CpuAffinityService>();
+builder.Services.AddSingleton<AffinityControlService>();
+builder.Services.AddSingleton<ProcessTerminationService>();
+builder.Services.AddSingleton<TerminationControlService>();
 
 //CORS fix
 builder.Services.AddCors(options =>
@@ -47,49 +54,67 @@ app.MapGet("/profiles", (ProfileManager pm) =>
     });
 });
 
-app.MapPost("/apply-profile/{id}", (string id, ProfileManager pm) =>
+app.MapPost("/apply-profile/{id}", (string id, ProfileManager pm, AutoModeService auto) =>
 {
+    auto.TriggerManualOverride();
+
     var profile = pm.Profiles.FirstOrDefault(p => p.Id == id);
 
     if (profile == null)
         return Results.NotFound("Profile not found");
 
-    try
-    {
-        var changed = pm.ApplyProfile(profile.Id);
-        var appliedWithAdmin = pm.ApplyProfile(profile.Id);
+    var appliedWithAdmin = pm.ApplyProfile(profile.Id);
 
-        return Results.Ok(new
-        {
-            success = true,
-            requiresAdmin = !appliedWithAdmin,
-            message = appliedWithAdmin
-                ? $"Profile '{profile.Name}' applied"
-                : "Profile applied (limited mode - admin required for full optimization)",
-            currentProfileId = pm.GetCurrentProfile()
-        });
-    }
-    catch (UnauthorizedAccessException)
+    return Results.Ok(new
     {
-        return Results.Ok(new
-        {
-            success = false,
-            requiresAdmin = true,
-            message = "Admin privileges required"
-        });
-    }
+        success = true,
+        requiresAdmin = !appliedWithAdmin,
+        message = appliedWithAdmin
+            ? $"Profile '{profile.Name}' applied"
+            : "Profile applied (limited mode - admin required for full optimization)",
+        currentProfileId = pm.GetCurrentProfile()
+    });
 });
 
-app.MapPost("/auto-switch", (RuleEngine rule, ProfileManager pm) =>
+app.MapPost("/auto-switch", (
+    RuleEngine rule,
+    ProfileManager pm,
+    AutoModeService auto,
+    ProcessTerminationService pts,
+    ProcessOptimizerService optimizer) =>
 {
+    if (auto.IsInManualOverride())
+        return Results.Ok(new { skipped = true });
+
     var decided = rule.DecideProfile();
     pm.ApplyProfile(decided);
+
+    var appsToClose = rule.GetAppsToClose();
+    var foreground = optimizer.GetForegroundProcess();
+
+    foreach (var process in Process.GetProcesses())
+    {
+        try
+        {
+            var name = process.ProcessName.ToLower();
+
+            if (appsToClose.Contains(name))
+            {
+                if (pts.TryCloseProcess(process, foreground))
+                {
+                    Console.WriteLine($"[Pulse] Rule safely closed: {process.ProcessName}");
+                }
+            }
+        }
+        catch { }
+    }
 
     return Results.Ok(new
     {
         currentProfileId = pm.GetCurrentProfile()
     });
 });
+
 app.MapPost("/auto-mode/{state}", (string state, AutoModeService auto) =>
 {
     bool enable = state.Equals("on", StringComparison.OrdinalIgnoreCase);
@@ -197,7 +222,102 @@ app.MapGet("/auto-mode", (AutoModeService auto) =>
         enabled = auto.IsEnabled()
     });
 });
+app.MapPost("/priority-mode/{state}", (string state, PriorityControlService pcs) =>
+{
+    bool enable = state.Equals("on", StringComparison.OrdinalIgnoreCase);
+    pcs.SetEnabled(enable);
 
+    return Results.Ok(new
+    {
+        priorityMode = enable
+    });
+});
 
+app.MapGet("/priority-mode", (PriorityControlService pcs) =>
+{
+    return Results.Ok(new
+    {
+        enabled = pcs.IsEnabled()
+    });
+});
+app.MapGet("/priority-apps", (UserPriorityService ups) =>
+{
+    return Results.Ok(ups.GetApps());
+});
+app.MapPost("/priority-apps", (List<string> apps, UserPriorityService ups) =>
+{
+    Console.WriteLine("[Pulse] Updating priority apps...");
+    ups.SetApps(apps);
+
+    return Results.Ok(new
+    {
+        apps = ups.GetApps()
+    });
+});
+app.MapPost("/affinity-mode/{state}", (string state, AffinityControlService acs) =>
+{
+    bool enable = state.Equals("on", StringComparison.OrdinalIgnoreCase);
+    acs.SetEnabled(enable);
+
+    return Results.Ok(new { affinityMode = enable });
+});
+
+app.MapGet("/affinity-mode", (AffinityControlService acs) =>
+{
+    return Results.Ok(new { enabled = acs.IsEnabled() });
+});
+app.MapPost("/termination-mode/{mode}", (string mode, TerminationControlService tcs) =>
+{
+    tcs.SetMode(mode);
+    return Results.Ok(new { mode });
+});
+app.MapGet("/termination-mode", (TerminationControlService tcs) =>
+{
+    return Results.Ok(new { mode = tcs.GetMode() });
+});
+app.MapPost("/cleanup", (
+    ProcessTerminationService pts,
+    TerminationControlService tcs,
+    ProcessOptimizerService optimizer) =>
+{
+    var heavy = pts.GetHeavyProcesses();
+    var closed = new List<string>();
+
+    var mode = tcs.GetMode();
+    var foreground = optimizer.GetForegroundProcess();
+
+    Console.WriteLine($"[Pulse] Cleanup triggered | Mode: {mode} | Processes: {heavy.Count}");
+
+    foreach (var process in heavy)
+    {
+        if (mode == "safe")
+            continue;
+
+        if (mode == "smart")
+        {
+            if (foreground != null && process.Id == foreground.Id)
+                continue;
+        }
+
+        if (pts.TryCloseProcess(process, foreground))
+        {
+            closed.Add(process.ProcessName);
+        }
+    }
+
+    return Results.Ok(new
+    {
+        closed
+    });
+});
+app.MapPost("/rules", (Rule rule, RuleEngine engine) =>
+{
+    engine.AddRule(rule);
+    return Results.Ok(engine.GetRules());
+});
+app.MapGet("/rules", (RuleEngine engine) =>
+{
+    return Results.Ok(engine.GetRules());
+});
 
 app.Run();
