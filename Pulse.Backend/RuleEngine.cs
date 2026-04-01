@@ -19,12 +19,52 @@ namespace Pulse.Backend
 
         public List<Rule> GetRules() => _rules;
 
-        public void AddRule(Rule rule)
+        public bool AddRule(Rule rule)
         {
+            NormalizeRule(rule);
+
+            if (IsDuplicate(rule))
+                return false;
+
             _rules.Add(rule);
             SaveRules();
 
             Console.WriteLine($"[Pulse] Rule added: {rule.TriggerProcess}");
+            return true;
+        }
+
+        public bool UpdateRule(Guid id, Rule updatedRule)
+        {
+            var existing = _rules.FirstOrDefault(r => r.Id == id);
+            if (existing == null)
+                return false;
+
+            NormalizeRule(updatedRule);
+
+            if (_rules.Any(r =>
+                r.Id != id &&
+                AreRulesEqual(r, updatedRule)))
+            {
+                return false;
+            }
+
+            existing.TriggerProcess = updatedRule.TriggerProcess;
+            existing.TargetProfile = updatedRule.TargetProfile;
+            existing.CloseApps = updatedRule.CloseApps;
+
+            SaveRules();
+            return true;
+        }
+
+        public bool DeleteRule(Guid id)
+        {
+            var rule = _rules.FirstOrDefault(r => r.Id == id);
+            if (rule == null)
+                return false;
+
+            _rules.Remove(rule);
+            SaveRules();
+            return true;
         }
 
         private void LoadRules()
@@ -38,7 +78,19 @@ namespace Pulse.Backend
                 var data = JsonSerializer.Deserialize<List<Rule>>(json);
 
                 if (data != null)
+                {
+                    foreach (var rule in data)
+                    {
+                        if (rule.Id == Guid.Empty)
+                            rule.Id = Guid.NewGuid();
+
+                        NormalizeRule(rule);
+                    }
+
                     _rules = data;
+                }
+
+                SaveRules();
 
                 Console.WriteLine($"[Pulse] Loaded {_rules.Count} rules");
             }
@@ -65,6 +117,11 @@ namespace Pulse.Backend
             }
         }
 
+        public void SaveAfterExternalChange()
+        {
+            SaveRules();
+        }
+
         public string DecideProfile()
         {
             var running = Process.GetProcesses()
@@ -73,7 +130,7 @@ namespace Pulse.Backend
 
             foreach (var rule in _rules)
             {
-                if (running.Contains(rule.TriggerProcess.ToLower()))
+                if (running.Contains(rule.TriggerProcess))
                 {
                     Console.WriteLine($"[Pulse] Rule triggered: {rule.TriggerProcess}");
                     return rule.TargetProfile;
@@ -91,13 +148,37 @@ namespace Pulse.Backend
 
             foreach (var rule in _rules)
             {
-                if (running.Contains(rule.TriggerProcess.ToLower()))
+                if (running.Contains(rule.TriggerProcess))
                 {
                     return rule.CloseApps;
                 }
             }
 
             return new List<string>();
+        }
+
+
+        private void NormalizeRule(Rule rule)
+        {
+            rule.TriggerProcess = rule.TriggerProcess.ToLower().Trim();
+            rule.TargetProfile = rule.TargetProfile.ToLower().Trim();
+            rule.CloseApps = rule.CloseApps
+                .Select(a => a.ToLower().Trim())
+                .Where(a => !string.IsNullOrWhiteSpace(a))
+                .Distinct()
+                .ToList();
+        }
+
+        private bool IsDuplicate(Rule rule)
+        {
+            return _rules.Any(r => AreRulesEqual(r, rule));
+        }
+
+        private bool AreRulesEqual(Rule a, Rule b)
+        {
+            return a.TriggerProcess == b.TriggerProcess &&
+                   a.TargetProfile == b.TargetProfile &&
+                   new HashSet<string>(a.CloseApps).SetEquals(b.CloseApps);
         }
     }
 }

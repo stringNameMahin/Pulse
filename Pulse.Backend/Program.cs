@@ -312,11 +312,33 @@ app.MapPost("/cleanup", (
 });
 app.MapPost("/rules", (Rule rule, RuleEngine engine) =>
 {
-    engine.AddRule(rule);
+    var success = engine.AddRule(rule);
+
+    if (!success)
+        return Results.BadRequest("Duplicate rule");
+
     return Results.Ok(engine.GetRules());
 });
 app.MapGet("/rules", (RuleEngine engine) =>
 {
+    return Results.Ok(engine.GetRules());
+});
+app.MapDelete("/rules/{id}", (Guid id, RuleEngine engine) =>
+{
+    var success = engine.DeleteRule(id);
+
+    if (!success)
+        return Results.NotFound("Rule not found");
+
+    return Results.Ok(engine.GetRules());
+});
+app.MapPut("/rules/{id}", (Guid id, Rule updatedRule, RuleEngine engine) =>
+{
+    var success = engine.UpdateRule(id, updatedRule);
+
+    if (!success)
+        return Results.BadRequest("Update failed (duplicate or not found)");
+
     return Results.Ok(engine.GetRules());
 });
 
