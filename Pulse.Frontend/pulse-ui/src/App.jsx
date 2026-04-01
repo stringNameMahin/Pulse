@@ -92,10 +92,13 @@ function App() {
   };
 
   const toggleAutoMode = async () => {
-    const state = autoMode ? "off" : "on";
-    await fetch(`${BASE_URL}/auto-mode/${state}`, { method: "POST" });
-    fetchAll();
-  };
+  const newState = !autoMode;
+  setAutoMode(newState); //
+
+  const state = newState ? "on" : "off";
+
+  await fetch(`${BASE_URL}/auto-mode/${state}`, { method: "POST" });
+};
 
   const togglePriorityMode = async () => {
     const state = priorityMode ? "off" : "on";
