@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getColors } from "../theme";
 
 function Rules({
     rules,
@@ -11,55 +12,52 @@ function Rules({
     updateRule,
     isDark
 }) {
-    const bg = isDark ? "#2c2c2c" : "#fff";
-    const text = isDark ? "#fff" : "#000";
 
+    const colors = getColors(isDark);
     const [inputValue, setInputValue] = useState("");
 
     return (
-        <div style={{ color: text }}>
-            <h2>Rules</h2>
+        <div style={{ color: colors.text }}>
+
+            {/* HEADER */}
+            <div style={{ marginBottom: 20 }}>
+                <h2>🧠 Rules</h2>
+                <p style={{ color: colors.subtext }}>
+                    Automate system behavior based on running applications
+                </p>
+            </div>
 
             {/* ADD RULE */}
-            <div style={{
-                background: bg,
-                padding: 20,
-                borderRadius: 12,
-                marginTop: 20
-            }}>
+            <div style={section(colors)}>
                 <h3>Add Rule</h3>
 
-                {/* Trigger */}
                 <input
                     placeholder="Trigger Process (e.g. chrome)"
                     value={newRule.triggerProcess}
                     onChange={(e) =>
                         setNewRule({ ...newRule, triggerProcess: e.target.value })
                     }
-                    style={{ padding: 8, marginBottom: 10, width: "100%" }}
+                    style={input(colors)}
                 />
 
-                {/* Profile */}
                 <select
                     value={newRule.targetProfile}
                     onChange={(e) =>
                         setNewRule({ ...newRule, targetProfile: e.target.value })
                     }
-                    style={{ padding: 8, marginBottom: 10, width: "100%" }}
+                    style={input(colors)}
                 >
                     <option value="balanced">Balanced</option>
                     <option value="high">High Performance</option>
                 </select>
 
-                {/* Tag Input */}
                 <input
-                    placeholder="Add app to close (press Enter)"
+                    placeholder="Add app to close (Enter)"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter") {
                             e.preventDefault();
-
                             const value = inputValue.trim().toLowerCase();
                             if (!value) return;
 
@@ -75,220 +73,108 @@ function Rules({
                             setInputValue("");
                         }
                     }}
-                    style={{ padding: 8, width: "100%" }}
+                    style={input(colors)}
                 />
 
-                {/* Tags */}
                 <div style={{ marginTop: 10 }}>
                     {newRule.closeApps?.map((app, i) => (
                         <span
                             key={i}
                             onClick={() => {
                                 const updated = newRule.closeApps.filter(a => a !== app);
-
-                                setNewRule({
-                                    ...newRule,
-                                    closeApps: updated
-                                });
+                                setNewRule({ ...newRule, closeApps: updated });
                             }}
-                            style={{
-                                marginRight: 8,
-                                padding: "5px 10px",
-                                borderRadius: 10,
-                                background: "#4a90e2",
-                                color: "#fff",
-                                display: "inline-block",
-                                cursor: "pointer"
-                            }}
+                            style={chip(colors)}
                         >
                             {app} ✕
                         </span>
                     ))}
                 </div>
 
-                {/* Add Button */}
-                <button
-                    onClick={() => {
-                        if (!newRule.triggerProcess.trim()) {
-                            alert("Enter a trigger process");
-                            return;
-                        }
-                        addRule();
-                    }}
-                    style={{
-                        marginTop: 15,
-                        padding: "8px 12px",
-                        borderRadius: 6,
-                        border: "none",
-                        cursor: "pointer",
-                        background: "#4a90e2",
-                        color: "#fff"
-                    }}
-                >
+                <button onClick={addRule} style={primaryBtn(colors)}>
                     Add Rule
                 </button>
             </div>
 
             {/* RULE LIST */}
-            <div style={{
-                background: bg,
-                padding: 20,
-                borderRadius: 12,
-                marginTop: 20
-            }}>
-                <h3>Existing Rules</h3>
+            <div style={{ marginTop: 25 }}>
 
-                {rules.length === 0 && <p>No rules yet</p>}
-
-                {rules.map((r) => (
-                    <div key={r.id} style={{
-                        marginBottom: 10,
-                        padding: 10,
-                        borderRadius: 8,
-                        background: isDark ? "#3a3a3a" : "#f5f5f5"
-                    }}>
-                        <b>{r.triggerProcess}</b> → {r.targetProfile}
-                        <br />
-                        Close: {r.closeApps?.join(", ") || "None"}
-
-                        <br />
-
-                        {/* DELETE */}
-                        <button
-                            onClick={() => deleteRule(r.id)}
-                            style={{
-                                marginTop: 5,
-                                padding: "5px 10px",
-                                borderRadius: 5,
-                                border: "none",
-                                cursor: "pointer",
-                                background: "#ff4d4d",
-                                color: "#fff"
-                            }}
-                        >
-                            Delete
-                        </button>
-
-                        {/* EDIT */}
-                        <button
-                            onClick={() => setEditingRule({ ...r })}
-                            style={{
-                                marginTop: 5,
-                                marginLeft: 10,
-                                padding: "5px 10px",
-                                borderRadius: 5,
-                                border: "none",
-                                cursor: "pointer",
-                                background: "#ffaa00",
-                                color: "#fff"
-                            }}
-                        >
-                            Edit
-                        </button>
+                {rules.length === 0 && (
+                    <div style={{ textAlign: "center", color: colors.subtext }}>
+                        <h3>No rules yet</h3>
+                        <p>Create your first automation rule</p>
                     </div>
-                ))}
+                )}
+
+                <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                    gap: 15
+                }}>
+                    {rules.map((r) => (
+                        <div key={r.id} style={card(colors)}
+                            onMouseOver={e => e.currentTarget.style.transform = "translateY(-4px) scale(1.01)"}
+                            onMouseOut={e => e.currentTarget.style.transform = "translateY(0px) scale(1)"}
+                        >
+                            <h3>{r.triggerProcess.toUpperCase()}</h3>
+
+                            <p style={{ color: colors.subtext }}>
+                                {r.targetProfile === "high" ? "High Performance" : "Balanced"}
+                            </p>
+
+                            <div style={{ marginTop: 10 }}>
+                                {r.closeApps?.length > 0
+                                    ? r.closeApps.map((app, i) => (
+                                        <span key={i} style={chip(colors)}>{app}</span>
+                                    ))
+                                    : <span style={{ color: colors.subtext }}>No apps</span>}
+                            </div>
+
+                            <div style={{ marginTop: 15 }}>
+                                <button onClick={() => setEditingRule({ ...r })} style={editBtn}>
+                                    Edit
+                                </button>
+
+                                <button onClick={() => deleteRule(r.id)} style={deleteBtn(colors)}>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
-            {/* EDIT MODAL */}
+            {/* MODAL */}
             {editingRule && (
-                <div style={{
-                    position: "fixed",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: "100%",
-                    background: "rgba(0,0,0,0.5)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center"
-                }}>
-                    <div style={{
-                        background: bg,
-                        padding: 20,
-                        borderRadius: 12,
-                        width: 400
-                    }}>
+                <div style={modalOverlay}>
+                    <div style={modalBox(colors)}>
                         <h3>Edit Rule</h3>
 
                         <input
                             value={editingRule.triggerProcess}
                             onChange={(e) =>
-                                setEditingRule({
-                                    ...editingRule,
-                                    triggerProcess: e.target.value
-                                })
+                                setEditingRule({ ...editingRule, triggerProcess: e.target.value })
                             }
-                            style={{ width: "100%", marginBottom: 10 }}
+                            style={input(colors)}
                         />
 
                         <select
                             value={editingRule.targetProfile}
                             onChange={(e) =>
-                                setEditingRule({
-                                    ...editingRule,
-                                    targetProfile: e.target.value
-                                })
+                                setEditingRule({ ...editingRule, targetProfile: e.target.value })
                             }
-                            style={{ width: "100%", marginBottom: 10 }}
+                            style={input(colors)}
                         >
                             <option value="balanced">Balanced</option>
                             <option value="high">High Performance</option>
                         </select>
 
-                        <input
-                            placeholder="Add app (Enter)"
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    const value = e.target.value.trim().toLowerCase();
-                                    if (!value) return;
-
-                                    if (!editingRule.closeApps.includes(value)) {
-                                        setEditingRule({
-                                            ...editingRule,
-                                            closeApps: [...editingRule.closeApps, value]
-                                        });
-                                    }
-
-                                    e.target.value = "";
-                                }
-                            }}
-                            style={{ width: "100%" }}
-                        />
-
-                        <div style={{ marginTop: 10 }}>
-                            {editingRule.closeApps.map((app, i) => (
-                                <span
-                                    key={i}
-                                    onClick={() =>
-                                        setEditingRule({
-                                            ...editingRule,
-                                            closeApps: editingRule.closeApps.filter(a => a !== app)
-                                        })
-                                    }
-                                    style={{
-                                        marginRight: 8,
-                                        padding: "5px 10px",
-                                        borderRadius: 10,
-                                        background: "#4a90e2",
-                                        color: "#fff",
-                                        cursor: "pointer"
-                                    }}
-                                >
-                                    {app} ✕
-                                </span>
-                            ))}
-                        </div>
-
                         <div style={{ marginTop: 15 }}>
-                            <button
-                                onClick={() => updateRule(editingRule.id, editingRule)}
-                                style={{ marginRight: 10 }}
-                            >
+                            <button onClick={() => updateRule(editingRule.id, editingRule)} style={primaryBtn(colors)}>
                                 Save
                             </button>
 
-                            <button onClick={() => setEditingRule(null)}>
+                            <button onClick={() => setEditingRule(null)} style={secondaryBtn(colors)}>
                                 Cancel
                             </button>
                         </div>
@@ -298,5 +184,94 @@ function Rules({
         </div>
     );
 }
+
+/* STYLES */
+
+const section = (c) => ({
+    background: c.card,
+    padding: 20,
+    borderRadius: 16
+});
+
+const card = (c) => ({
+    background: c.card,
+    padding: 15,
+    borderRadius: 16,
+    transition: "0.2s"
+});
+
+const input = (c) => ({
+    width: "100%",
+    padding: 10,
+    marginTop: 10,
+    borderRadius: 10,
+    border: "none",
+    background: c.bg,
+    color: c.text
+});
+
+const chip = (c) => ({
+    marginRight: 6,
+    padding: "4px 10px",
+    borderRadius: 12,
+    background: c.accent,
+    color: "#fff",
+    fontSize: 12,
+    cursor: "pointer"
+});
+
+const primaryBtn = (c) => ({
+    marginTop: 15,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "none",
+    background: c.accent,
+    color: "#fff",
+    cursor: "pointer"
+});
+
+const secondaryBtn = (c) => ({
+    marginLeft: 10,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "none",
+    background: c.hover,
+    color: c.text
+});
+
+const editBtn = {
+    marginRight: 8,
+    padding: "6px 10px",
+    borderRadius: 8,
+    border: "none",
+    background: "#f59e0b",
+    color: "#fff",
+    cursor: "pointer"
+};
+
+const deleteBtn = (c) => ({
+    padding: "6px 10px",
+    borderRadius: 8,
+    border: "none",
+    background: c.danger,
+    color: "#fff",
+    cursor: "pointer"
+});
+
+const modalOverlay = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.7)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+};
+
+const modalBox = (c) => ({
+    background: c.card,
+    padding: 25,
+    borderRadius: 16,
+    width: 400
+});
 
 export default Rules;

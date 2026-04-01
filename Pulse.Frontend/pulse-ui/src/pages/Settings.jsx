@@ -1,3 +1,5 @@
+import { getColors } from "../theme";
+
 function Settings({
   isDark,
   toggleTheme,
@@ -12,133 +14,127 @@ function Settings({
   removePriorityApp
 }) {
 
-  const bg = isDark ? "#2c2c2c" : "#fff";
-  const text = isDark ? "#fff" : "#000";
-
-  const card = {
-    background: bg,
-    color: text,
-    padding: 20,
-    borderRadius: 12,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    maxWidth: "100%"
-  };
-
-  const buttonStyle = (active) => ({
-    padding: "10px 15px",
-    borderRadius: 8,
-    border: "none",
-    cursor: "pointer",
-    width: "100%",
-    background: active ? "#4a90e2" : (isDark ? "#444" : "#eee"),
-    color: active ? "#fff" : text,
-    fontWeight: active ? "bold" : "normal"
-  });
+  const colors = getColors(isDark);
 
   return (
-    <div>
-      <h2>Settings</h2>
+    <div style={{ color: colors.text }}>
 
-      <div style={{ ...card, marginTop: 20 }}>
+      <h2>🔧 Settings</h2>
+      <p style={{ color: colors.subtext }}>
+        Customize Pulse behavior and preferences
+      </p>
 
-        {/* CONTROLS */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10
-        }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gap: 20,
+        marginTop: 20
+      }}>
 
-          <button
-            onClick={toggleTheme}
-            style={buttonStyle(isDark)}
-          >
-            Theme: {isDark ? "Dark" : "Light"}
-          </button>
+        {/* GENERAL */}
+        <div style={section(colors)}>
+          <h3>General</h3>
 
-          <button
-            onClick={toggleAutoMode}
-            style={buttonStyle(autoMode)}
-          >
-            Auto Mode: {autoMode ? "ON" : "OFF"}
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button onClick={toggleTheme} style={toggleBtn(colors, isDark)}>
+              Theme: {isDark ? "Dark" : "Light"}
+            </button>
 
-          <button
-            onClick={togglePriorityMode}
-            style={buttonStyle(priorityMode)}
-          >
-            Smart Priority: {priorityMode ? "ON" : "OFF"}
-          </button>
-          <div style={{ marginTop: 20 }}>
-            <h3>Priority Apps</h3>
+            <button onClick={toggleAutoMode} style={toggleBtn(colors, autoMode)}>
+              Auto Mode: {autoMode ? "ON" : "OFF"}
+            </button>
 
-            {/* INPUT */}
-            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              <input
-                placeholder="Enter app name (e.g. chrome)"
-                value={newApp}
-                onChange={(e) => setNewApp(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: 8,
-                  borderRadius: 6,
-                  border: "1px solid #ccc",
-                  background: isDark ? "#444" : "#fff",
-                  color: isDark ? "#fff" : "#000"
-                }}
-              />
+            <button onClick={togglePriorityMode} style={toggleBtn(colors, priorityMode)}>
+              Smart Priority: {priorityMode ? "ON" : "OFF"}
+            </button>
+          </div>
+        </div>
 
-              <button
-                onClick={addPriorityApp}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  border: "none",
-                  cursor: "pointer"
-                }}
-              >
-                Add
-              </button>
-            </div>
+        {/* PRIORITY APPS */}
+        <div style={section(colors)}>
+          <h3>Priority Apps</h3>
 
-            {/* LIST */}
-            <div style={{ marginTop: 15, display: "flex", flexDirection: "column", gap: 8 }}>
-              {priorityApps.map(app => (
-                <div
-                  key={app}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: 8,
-                    borderRadius: 6,
-                    background: isDark ? "#444" : "#eee"
-                  }}
-                >
-                  <span>{app}</span>
+          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+            <input
+              placeholder="Enter app name"
+              value={newApp}
+              onChange={(e) => setNewApp(e.target.value)}
+              style={input(colors)}
+            />
 
-                  <button
-                    onClick={() => removePriorityApp(app)}
-                    style={{
-                      border: "none",
-                      background: "red",
-                      color: "#fff",
-                      borderRadius: 6,
-                      padding: "4px 8px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    X
-                  </button>
-                </div>
-              ))}
-            </div>
+            <button onClick={addPriorityApp} style={primaryBtn(colors)}>
+              Add
+            </button>
           </div>
 
+          <div style={{ marginTop: 15 }}>
+            {priorityApps.map(app => (
+              <div key={app} style={listItem(colors)}>
+                <span>{app}</span>
+
+                <button onClick={() => removePriorityApp(app)} style={deleteBtn(colors)}>
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>
     </div>
   );
 }
+
+/* STYLES */
+
+const section = (c) => ({
+  background: c.card,
+  padding: 20,
+  borderRadius: 16
+});
+
+const toggleBtn = (c, active) => ({
+  padding: "10px",
+  borderRadius: 10,
+  border: "none",
+  background: active ? c.accent : c.hover,
+  color: active ? "#fff" : c.text,
+  cursor: "pointer"
+});
+
+const input = (c) => ({
+  flex: 1,
+  padding: 10,
+  borderRadius: 10,
+  border: "none",
+  background: c.bg,
+  color: c.text
+});
+
+const primaryBtn = (c) => ({
+  padding: "10px",
+  borderRadius: 10,
+  border: "none",
+  background: c.accent,
+  color: "#fff",
+  cursor: "pointer"
+});
+
+const listItem = (c) => ({
+  display: "flex",
+  justifyContent: "space-between",
+  padding: 10,
+  borderRadius: 10,
+  background: c.bg,
+  marginTop: 5
+});
+
+const deleteBtn = (c) => ({
+  background: c.danger,
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer"
+});
 
 export default Settings;

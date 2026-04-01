@@ -1,60 +1,45 @@
+import { getColors } from "../theme";
 function Optimization({ profile, switchProfile, isDark }) {
 
-  const bg = isDark ? "#2c2c2c" : "#fff";
-  const text = isDark ? "#fff" : "#000";
+  const colors = getColors(isDark);
 
-  const card = {
-    background: bg,
-    color: text,
+  const modeCard = (active) => ({
+    background: active ? colors.accent : colors.card,
+    color: active ? "#fff" : colors.text,
     padding: 20,
-    borderRadius: 12,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    width: "100%"
-  };
-
-  const buttonStyle = (active) => ({
-    padding: "10px 15px",
-    borderRadius: 8,
-    border: "none",
+    borderRadius: 16,
     cursor: "pointer",
-    width: "100%",
-    background: active ? "#4a90e2" : (isDark ? "#444" : "#eee"),
-    color: active ? "#fff" : text,
-    fontWeight: active ? "bold" : "normal"
+    transition: "0.2s",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
   });
 
   return (
     <div>
-      <h2>Optimization</h2>
+      <h2>⚙️ Optimization</h2>
 
-      <div style={{ ...card, marginTop: 20 }}>
-
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10
-        }}>
-          
-          <button
-            onClick={() => switchProfile("balanced")}
-            style={buttonStyle(profile === "balanced")}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+        gap: 20,
+        marginTop: 20
+      }}>
+        {["balanced", "high"].map((mode) => (
+          <div key={mode}
+            style={modeCard(profile === mode)}
+            onClick={() => switchProfile(mode)}
           >
-            Balanced Mode
-          </button>
+            <h3>{mode.toUpperCase()}</h3>
+          </div>
+        ))}
+      </div>
 
-          <button
-            onClick={() => switchProfile("high")}
-            style={buttonStyle(profile === "high")}
-          >
-            High Performance
-          </button>
-
-        </div>
-
-        <p style={{ marginTop: 15 }}>
-          Current Profile: <b>{profile}</b>
-        </p>
-
+      <div style={{
+        marginTop: 20,
+        padding: 15,
+        borderRadius: 12,
+        background: colors.card
+      }}>
+        Current Profile: <b>{profile}</b>
       </div>
     </div>
   );

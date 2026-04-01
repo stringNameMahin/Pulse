@@ -1,10 +1,9 @@
 import { useState } from "react";
+import { getColors } from "../theme";
 
 function Processes({ processes, isDark }) {
 
-  const bg = isDark ? "#2c2c2c" : "#fff";
-  const text = isDark ? "#fff" : "#000";
-  const rowHover = isDark ? "#3a3a3a" : "#f1f1f1";
+  const colors = getColors(isDark);
 
   const [search, setSearch] = useState("");
   const [sortDesc, setSortDesc] = useState(true);
@@ -18,111 +17,144 @@ function Processes({ processes, isDark }) {
     );
 
   return (
-    <div style={{ color: text }}>
-      <h2>Processes</h2>
+    <div style={{ color: colors.text }}>
+
+      {/* HEADER */}
+      <div style={{ marginBottom: 20 }}>
+        <h2>📊 Processes</h2>
+        <p style={{ color: colors.subtext }}>
+          Monitor and analyze running applications
+        </p>
+      </div>
 
       {/* CONTROLS */}
       <div style={{
         display: "flex",
         gap: 10,
-        marginTop: 10,
+        marginBottom: 15,
         flexWrap: "wrap"
       }}>
         <input
-          placeholder="Search..."
+          placeholder="Search process..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
-            padding: 8,
-            borderRadius: 6,
-            border: "1px solid #ccc",
-            background: bg,
-            color: text,
             flex: 1,
-            minWidth: 150
+            padding: 10,
+            borderRadius: 10,
+            border: "none",
+            background: colors.card,
+            color: colors.text,
+            outline: "none"
           }}
         />
 
         <button
           onClick={() => setSortDesc(!sortDesc)}
           style={{
-            padding: "8px 12px",
-            borderRadius: 6,
+            padding: "10px 14px",
+            borderRadius: 10,
             border: "none",
-            cursor: "pointer"
+            cursor: "pointer",
+            background: colors.accent,
+            color: "#fff"
           }}
         >
           Sort: {sortDesc ? "High → Low" : "Low → High"}
         </button>
       </div>
 
-      {/* TABLE CONTAINER */}
+      {/* TABLE CARD */}
       <div style={{
-        marginTop: 15,
-        maxHeight: "70vh",
-        overflowY: "auto",
-        background: bg,
-        borderRadius: 10,
+        background: colors.card,
+        borderRadius: 16,
         padding: 10,
-        boxShadow: "0 2px 10px rgba(0,0,0,0.1)"
+        boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+        overflowX: "auto"
       }}>
 
-        {/* HORIZONTAL SCROLL*/}
-        <div style={{ overflowX: "auto" }}>
+        <table style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          minWidth: 500
+        }}>
 
-          <table style={{
-            width: "100%",
-            minWidth: 500,
-            borderCollapse: "collapse"
-          }}>
-            <thead>
-              <tr style={{ background: isDark ? "#444" : "#eee" }}>
-                <th style={{ padding: 8 }}>Name</th>
-                <th style={{ padding: 8 }}>PID</th>
-                <th style={{ padding: 8 }}>Memory</th>
-                <th style={{ padding: 8 }}>CPU</th>
-              </tr>
-            </thead>
+          {/* HEADER */}
+          <thead>
+            <tr style={{
+              textAlign: "left",
+              borderBottom: `1px solid ${colors.hover}`,
+              color: colors.subtext
+            }}>
+              <th style={th}>Name</th>
+              <th style={th}>PID</th>
+              <th style={th}>Memory</th>
+              <th style={th}>CPU Time</th>
+            </tr>
+          </thead>
 
-            <tbody>
-              {filtered.map(p => (
+          {/* BODY */}
+          <tbody>
+            {filtered.map(p => {
+              const isHeavy = p.memoryMB > 500;
+
+              return (
                 <tr
                   key={p.id}
                   style={{
-                    borderBottom: "1px solid #555",
-                    backgroundColor: p.memoryMB > 500
-                      ? (isDark ? "#5c2b2b" : "#ffe6e6")
-                      : "transparent"
+                    borderBottom: `1px solid ${colors.bg}`,
+                    background: isHeavy
+                      ? "rgba(239,68,68,0.15)"
+                      : "transparent",
+                    transition: "0.2s"
                   }}
                   onMouseOver={(e) =>
-                    (e.currentTarget.style.backgroundColor = rowHover)
+                    (e.currentTarget.style.background = colors.hover)
                   }
                   onMouseOut={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      p.memoryMB > 500
-                        ? (isDark ? "#5c2b2b" : "#ffe6e6")
+                    (e.currentTarget.style.background =
+                      isHeavy
+                        ? "rgba(239,68,68,0.15)"
                         : "transparent")
                   }
                 >
-                  <td style={{ padding: 8 }}>{p.name}</td>
-                  <td style={{ padding: 8 }}>{p.id}</td>
+                  <td style={td}>{p.name}</td>
+
+                  <td style={{ ...td, color: colors.subtext }}>
+                    {p.id}
+                  </td>
+
                   <td style={{
-                    padding: 8,
-                    fontWeight: p.memoryMB > 500 ? "bold" : "normal",
-                    color: p.memoryMB > 500 ? "red" : text
+                    ...td,
+                    fontWeight: isHeavy ? "bold" : "normal",
+                    color: isHeavy ? colors.danger : colors.text
                   }}>
                     {p.memoryMB} MB
                   </td>
-                  <td style={{ padding: 8 }}>{p.cpuTimeSeconds}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
 
-        </div>
+                  <td style={{ ...td, color: colors.subtext }}>
+                    {p.cpuTimeSeconds}s
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
       </div>
     </div>
   );
 }
+
+/* STYLES */
+
+const th = {
+  padding: "12px 10px",
+  fontWeight: "500"
+};
+
+const td = {
+  padding: "12px 10px"
+};
 
 export default Processes;

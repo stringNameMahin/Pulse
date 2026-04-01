@@ -1,112 +1,106 @@
+import { getColors } from "../theme";
 function Dashboard({ status, isDark, isMobile }) {
 
-  const bg = isDark ? "#2c2c2c" : "#fff";
-  const text = isDark ? "#fff" : "#000";
 
-  const card = {
-    background: bg,
-    color: text,
-    padding: 20,
-    borderRadius: 12,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    height: "100%"
+  const colors = getColors(isDark);
+
+  const cpu = status?.cpuUsagePercent ?? 0;
+const ram = status?.ramTotalMB
+  ? Math.round((status.ramUsedMB / status.ramTotalMB) * 100)
+  : 0;
+
+  const getStatus = () => {
+    if (cpu > 70) return { label: "High Load", color: "#ef4444" };
+    if (cpu > 40) return { label: "Moderate", color: "#f59e0b" };
+    return { label: "Optimal", color: "#22c55e" };
   };
+
+  const statusInfo = getStatus();
 
   const Circle = ({ value, label }) => {
     const angle = value * 3.6;
 
     return (
-      <div style={{ textAlign: "center", color: text }}>
+      <div style={{ textAlign: "center" }}>
         <div style={{
-          width: 90,
-          height: 90,
+          width: 110,
+          height: 110,
           borderRadius: "50%",
-          background: `conic-gradient(#4a90e2 ${angle}deg, #888 ${angle}deg)`,
+          background: `conic-gradient(${colors.accent} ${angle}deg, ${colors.bg} ${angle}deg)`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           margin: "auto"
         }}>
           <div style={{
-            width: 65,
-            height: 65,
+            width: 80,
+            height: 80,
             borderRadius: "50%",
-            background: bg,
+            background: colors.bg,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center"
+            justifyContent: "center",
+            fontWeight: "bold",
+            color: colors.text
           }}>
             {value}%
           </div>
         </div>
-        <p style={{ marginTop: 8 }}>{label}</p>
+        <p style={{ marginTop: 10, color: colors.subtext }}>{label}</p>
       </div>
     );
   };
 
-  const cpu = status?.cpuUsagePercent || 0;
-  const ram = Math.round(
-    (status?.ramUsedMB / status?.ramTotalMB) * 100 || 0
-  );
+  const card = {
+    background: colors.card,
+    color: colors.text,
+    padding: 20,
+    borderRadius: 16,
+    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+    transition: "0.2s"
+  };
 
   return (
-    <div style={{ width: "100%" }}>
-      <h2 style={{ textAlign: isMobile ? "center" : "left" }}>
-        System Overview
-      </h2>
+    <div>
+      <h2>📊 System Overview</h2>
+      <p style={{ color: colors.subtext }}>Real-time performance insights</p>
 
-      {/* GRID LAYOUT */}
       <div style={{
         display: "grid",
         gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr",
         gap: 20,
-        marginTop: 20,
-        width: "100%",
-        alignItems: "stretch"
+        marginTop: 20
       }}>
 
-        {/* LEFT SIDE */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-          gap: 20,
-          width: "100%",
-          alignItems: "stretch"
+          gap: 20
         }}>
-          
-          <div style={card}>
-            <Circle value={cpu} label="CPU Usage" />
-          </div>
-
-          <div style={card}>
-            <Circle value={ram} label="Memory Usage" />
-          </div>
-
+          {[{ v: cpu, l: "CPU" }, { v: ram, l: "Memory" }].map((item, i) => (
+            <div key={i}
+              style={card}
+              onMouseOver={e => e.currentTarget.style.transform = "translateY(-4px) scale(1.01)"}
+              onMouseOut={e => e.currentTarget.style.transform = "translateY(0px) scale(1)"}
+            >
+              <Circle value={item.v} label={item.l} />
+            </div>
+          ))}
         </div>
 
-        {/* RIGHT SIDE */}
-        <div style={{
-          ...card,
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          textAlign: "center"
-        }}>
+        <div
+          style={{ ...card, textAlign: "center" }}
+          onMouseOver={e => e.currentTarget.style.transform = "translateY(-4px) scale(1.01)"}
+          onMouseOut={e => e.currentTarget.style.transform = "translateY(0px) scale(1)"}
+        >
           <h3>System Status</h3>
-
-          <p style={{
-            color: cpu > 70 ? "red" : cpu > 40 ? "orange" : "green",
-            fontWeight: "bold",
-            marginTop: 10
-          }}>
-            {cpu > 70 ? "High Load" : cpu > 40 ? "Moderate" : "Optimal"}
-          </p>
-
-          <p style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 10, fontWeight: "bold", color: statusInfo.color }}>
+            {statusInfo.label}
+          </div>
+          <div style={{ marginTop: 10, color: colors.subtext }}>
+            CPU: {cpu}% <br />
             RAM: {status?.ramUsedMB} MB
-          </p>
+          </div>
         </div>
 
       </div>

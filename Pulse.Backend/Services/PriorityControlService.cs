@@ -2,7 +2,7 @@
 {
     public class PriorityControlService
     {
-        private bool _enabled = false; // 🔥 OFF by default (safe)
+        private bool _enabled = false;
 
         public bool IsEnabled() => _enabled;
 
