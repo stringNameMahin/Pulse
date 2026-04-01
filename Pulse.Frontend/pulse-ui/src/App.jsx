@@ -7,7 +7,7 @@ import Rules from "./pages/Rules";
 import { useToast } from "./ToastContext";
 
 function App() {
-  const BASE_URL = "http://localhost:5126";
+  const BASE_URL = "http://localhost:5196";
   const { addToast } = useToast();
 
   const [processes, setProcesses] = useState([]);
@@ -29,9 +29,9 @@ function App() {
 
   const isDark = theme === "dark";
 
-  // ----------------------
+
   // FETCH CORE DATA
-  // ----------------------
+
   const fetchAll = async () => {
     try {
       const s = await fetch(`${BASE_URL}/status`).then(r => r.json());
@@ -54,62 +54,65 @@ function App() {
     }
   };
 
-  // ----------------------
   // EVENTS POLLING
-  // ----------------------
+
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const events = await fetch(`${BASE_URL}/events`).then(r => r.json());
-
-        events.forEach(e => addToast(e, "info"));
+        const s = await fetch(`${BASE_URL}/status`).then(r => r.json());
+        setStatus(s);
       } catch { }
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(fetchAll, 3000);
+    const interval = setInterval(fetchAll, 1500);
     return () => clearInterval(interval);
   }, []);
 
-  // ----------------------
   // INITIAL LOAD
-  // ----------------------
+
   useEffect(() => {
     fetchAll();
   }, []);
 
 
-  // ----------------------
   // ACTIONS
-  // ----------------------
 
   const switchProfile = async (id) => {
-    await fetch(`${BASE_URL}/apply-profile/${id}`, { method: "POST" });
-    fetchAll();
+    setProfile(id);
+
+    await fetch(`${BASE_URL}/apply-profile/${id}`, {
+      method: "POST"
+    });
   };
 
   const toggleAutoMode = async () => {
-  const newState = !autoMode;
-  setAutoMode(newState); //
+    const newState = !autoMode;
+    setAutoMode(newState); //
 
-  const state = newState ? "on" : "off";
+    const state = newState ? "on" : "off";
 
-  await fetch(`${BASE_URL}/auto-mode/${state}`, { method: "POST" });
-};
+    await fetch(`${BASE_URL}/auto-mode/${state}`, { method: "POST" });
+  };
 
   const togglePriorityMode = async () => {
-    const state = priorityMode ? "off" : "on";
+    const newState = !priorityMode;
+    setPriorityMode(newState);
+
+    const state = newState ? "on" : "off";
+
     await fetch(`${BASE_URL}/priority-mode/${state}`, { method: "POST" });
-    fetchAll();
   };
 
   const addPriorityApp = async () => {
     if (!newApp.trim()) return;
 
     const updated = [...priorityApps, newApp];
+    setPriorityApps(updated);
+
     await fetch(`${BASE_URL}/priority-apps`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -117,7 +120,6 @@ function App() {
     });
 
     setNewApp("");
-    fetchAll();
   };
 
   const removePriorityApp = async (app) => {
@@ -133,28 +135,43 @@ function App() {
   };
 
   // Rules
-  const addRule = async (newRule) => {
+  const addRule = async () => {
+    if (!newRule.triggerProcess.trim()) {
+      addToast("Enter a trigger process", "error");
+      return;
+    }
+
     await fetch(`${BASE_URL}/rules`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newRule)
     });
+
+    setNewRule({
+      triggerProcess: "",
+      targetProfile: "balanced",
+      closeApps: []
+    });
+
     fetchAll();
   };
 
   const updateRule = async (id, updatedRule) => {
-  await fetch(`${BASE_URL}/rules/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(updatedRule)
-  });
+    await fetch(`${BASE_URL}/rules/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedRule)
+    });
 
-  fetchAll();
-};
+    fetchAll();
+  };
 
   const deleteRule = async (id) => {
-    await fetch(`${BASE_URL}/rules/${id}`, { method: "DELETE" });
-    fetchAll();
+    setRules(prev => prev.filter(r => r.id !== id));
+
+    await fetch(`${BASE_URL}/rules/${id}`, {
+      method: "DELETE"
+    });
   };
 
   return (

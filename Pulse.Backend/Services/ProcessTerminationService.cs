@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace Pulse.Backend.Services
 {
@@ -13,33 +12,12 @@ namespace Pulse.Backend.Services
             "winlogon",
             "csrss",
             "memory compression",
-
             "devenv",
             "code",
-            //"chrome",
-            //"opera",
             "msedge",
-            "electron"
+            "electron",
+            "pulse"
         };
-
-        public List<Process> GetHeavyProcesses(double thresholdMb = 500)
-        {
-            var heavy = new List<Process>();
-
-            foreach (var process in Process.GetProcesses())
-            {
-                try
-                {
-                    double memoryMb = process.WorkingSet64 / (1024.0 * 1024.0);
-
-                    if (memoryMb >= thresholdMb)
-                        heavy.Add(process);
-                }
-                catch { }
-            }
-
-            return heavy;
-        }
 
         public bool TryCloseProcess(Process process, Process? foreground)
         {
@@ -47,6 +25,9 @@ namespace Pulse.Backend.Services
             {
                 var name = process.ProcessName.ToLower();
 
+                // ----------------------
+                // SAFETY CHECKS
+                // ----------------------
                 if (process.SessionId == 0)
                     return false;
 
@@ -59,21 +40,24 @@ namespace Pulse.Backend.Services
                 if (process.Id == Process.GetCurrentProcess().Id)
                     return false;
 
-                if (name.Contains("pulse") || name.Contains("electron"))
-                    return false;
-
                 if (foreground != null && process.Id == foreground.Id)
                 {
                     Console.WriteLine($"[Pulse] Skipping foreground app: {process.ProcessName}");
                     return false;
                 }
 
+                // ----------------------
+                // SAFE CLOSE
+                // ----------------------
                 if (process.CloseMainWindow())
                 {
                     Console.WriteLine($"[Pulse] Requested close: {process.ProcessName}");
                     return true;
                 }
 
+                // ----------------------
+                // FORCE KILL (fallback)
+                // ----------------------
                 process.Kill();
                 Console.WriteLine($"[Pulse] Force killed: {process.ProcessName}");
 

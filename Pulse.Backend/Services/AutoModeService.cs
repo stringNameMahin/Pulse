@@ -4,6 +4,7 @@
     {
         private bool _isEnabled = true;
         private DateTime _lastManualOverride = DateTime.MinValue;
+
         public void TriggerManualOverride()
         {
             _lastManualOverride = DateTime.Now;
@@ -11,7 +12,7 @@
 
         public bool IsInManualOverride()
         {
-            return (DateTime.Now - _lastManualOverride).TotalSeconds < 10;
+            return (DateTime.Now - _lastManualOverride).TotalSeconds < 5;
         }
 
         public bool IsEnabled() => _isEnabled;

@@ -1,30 +1,8 @@
 [
   {
-    "Id": "f426bbdc-f730-4342-b0be-5fb6bd656464",
+    "Id": "6ca244bd-155f-406e-a9c1-0ab7424341d8",
     "TriggerProcess": "opera",
     "TargetProfile": "balanced",
-    "CloseApps": []
-  },
-  {
-    "Id": "dc9edab9-c8d3-471d-aaf8-cf583b66ec7d",
-    "TriggerProcess": "chrome",
-    "TargetProfile": "high",
-    "CloseApps": [
-      "opera"
-    ]
-  },
-  {
-    "Id": "b4a74971-9164-4b38-9436-a07d3df41e97",
-    "TriggerProcess": "opera",
-    "TargetProfile": "high",
-    "CloseApps": [
-      "chrome"
-    ]
-  },
-  {
-    "Id": "a9aa45a6-4be7-4856-96c7-563a20230011",
-    "TriggerProcess": "opera_test",
-    "TargetProfile": "high",
     "CloseApps": [
       "chrome"
     ]

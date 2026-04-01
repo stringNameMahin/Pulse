@@ -116,7 +116,7 @@ function Rules({
                             onMouseOver={e => e.currentTarget.style.transform = "translateY(-4px) scale(1.01)"}
                             onMouseOut={e => e.currentTarget.style.transform = "translateY(0px) scale(1)"}
                         >
-                            <h3>{r.triggerProcess.toUpperCase()}</h3>
+                            <h3>{r.triggerProcess?.toUpperCase() || "UNKNOWN"}</h3>
 
                             <p style={{ color: colors.subtext }}>
                                 {r.targetProfile === "high" ? "High Performance" : "Balanced"}

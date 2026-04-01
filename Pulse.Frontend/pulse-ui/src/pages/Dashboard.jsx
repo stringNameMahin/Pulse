@@ -5,7 +5,7 @@ function Dashboard({ status, isDark, isMobile }) {
   const colors = getColors(isDark);
 
   const cpu = status?.cpuUsagePercent ?? 0;
-const ram = status?.ramTotalMB
+  const ram = status?.ramTotalMB
   ? Math.round((status.ramUsedMB / status.ramTotalMB) * 100)
   : 0;
 
@@ -99,7 +99,7 @@ const ram = status?.ramTotalMB
           </div>
           <div style={{ marginTop: 10, color: colors.subtext }}>
             CPU: {cpu}% <br />
-            RAM: {status?.ramUsedMB} MB
+            RAM: {(status?.ramUsedMB / 1024).toFixed(2)} GB / {(status?.ramTotalMB / 1024).toFixed(2)} GB
           </div>
         </div>
 

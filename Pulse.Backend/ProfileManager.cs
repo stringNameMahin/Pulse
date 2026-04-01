@@ -6,7 +6,6 @@ namespace Pulse.Backend
     {
         private string _currentProfileId = "balanced";
 
-        private readonly MonitoringService _monitoring;
         private readonly PowerPlanService _powerService;
         private readonly ProcessOptimizerService _optimizer;
         private readonly PriorityControlService _priorityControl;
@@ -15,7 +14,6 @@ namespace Pulse.Backend
         private readonly AffinityControlService _affinityControl;
 
         public ProfileManager(
-            MonitoringService monitoring,
             PowerPlanService powerService,
             ProcessOptimizerService optimizer,
             PriorityControlService priorityControl,
@@ -23,7 +21,6 @@ namespace Pulse.Backend
             CpuAffinityService affinity,
             AffinityControlService affinityControl)
         {
-            _monitoring = monitoring;
             _powerService = powerService;
             _optimizer = optimizer;
             _priorityControl = priorityControl;
@@ -42,29 +39,25 @@ namespace Pulse.Backend
 
         public bool ApplyProfile(string id)
         {
-            bool isSameProfile = _currentProfileId == id;
+            if (string.IsNullOrWhiteSpace(id))
+                return false;
 
             bool isAdmin = _powerService.IsAdministrator();
 
-            if (!isAdmin)
-            {
-                Console.WriteLine("[Pulse] Running without admin — power plan changes will be skipped");
-            }
-
-            if (!isSameProfile)
+            if (_currentProfileId != id)
             {
                 _currentProfileId = id;
                 Console.WriteLine($"[Pulse] Switched to profile: {id}");
             }
 
             ApplySystemActions(id, isAdmin);
-            Console.WriteLine($"[Pulse DEBUG] Requested: {id}, Current: {_currentProfileId}, Admin: {isAdmin}");
 
             return isAdmin;
         }
 
         private void ApplySystemActions(string profileId, bool isAdmin)
         {
+            // POWER PLAN
             if (isAdmin)
             {
                 var success = _powerService.SetPowerPlan(profileId);
@@ -75,21 +68,18 @@ namespace Pulse.Backend
                 }
             }
 
-            var foreground = _optimizer.GetForegroundProcess();
-            var apps = _userPriority.GetApps();
-
-            var processedIds = new HashSet<int>();
+            // PRIORITY
 
             if (_priorityControl.IsEnabled())
             {
+                var foreground = _optimizer.GetForegroundProcess();
+                var apps = _userPriority.GetApps();
+                var processed = new HashSet<int>();
+
                 if (foreground != null)
                 {
                     _optimizer.ApplyPriority(foreground, profileId);
-                    processedIds.Add(foreground.Id);
-                }
-                else
-                {
-                    Console.WriteLine("[Pulse] No foreground process detected");
+                    processed.Add(foreground.Id);
                 }
 
                 foreach (var process in System.Diagnostics.Process.GetProcesses())
@@ -98,24 +88,31 @@ namespace Pulse.Backend
                     {
                         var name = process.ProcessName.ToLower();
 
-                        if (apps.Contains(name) && !processedIds.Contains(process.Id))
+                        if (apps.Contains(name) && !processed.Contains(process.Id))
                         {
                             _optimizer.ApplyPriority(process, profileId);
-                            processedIds.Add(process.Id);
+                            processed.Add(process.Id);
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Pulse Warning] Priority failed: {ex.Message}");
+                    }
                 }
             }
 
+            // AFFINITY
+
             if (_affinityControl.IsEnabled())
             {
-                var affinityProcessed = new HashSet<int>();
+                var foreground = _optimizer.GetForegroundProcess();
+                var apps = _userPriority.GetApps();
+                var processed = new HashSet<int>();
 
                 if (foreground != null)
                 {
                     _affinity.ApplyAffinity(foreground, profileId);
-                    affinityProcessed.Add(foreground.Id);
+                    processed.Add(foreground.Id);
                 }
 
                 foreach (var process in System.Diagnostics.Process.GetProcesses())
@@ -124,13 +121,16 @@ namespace Pulse.Backend
                     {
                         var name = process.ProcessName.ToLower();
 
-                        if (apps.Contains(name) && !affinityProcessed.Contains(process.Id))
+                        if (apps.Contains(name) && !processed.Contains(process.Id))
                         {
                             _affinity.ApplyAffinity(process, profileId);
-                            affinityProcessed.Add(process.Id);
+                            processed.Add(process.Id);
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Pulse Warning] Affinity failed: {ex.Message}");
+                    }
                 }
             }
         }

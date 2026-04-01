@@ -7,26 +7,33 @@ namespace Pulse.Backend.Services
     {
         public bool IsAdministrator()
         {
-            // Dev mode override for testing
-            #if DEBUG
+#if DEBUG
             return true;
-            #endif
-
-            using var identity = WindowsIdentity.GetCurrent();
-            var principal = new WindowsPrincipal(identity);
-            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+#else
+    using var identity = WindowsIdentity.GetCurrent();
+    var principal = new WindowsPrincipal(identity);
+    return principal.IsInRole(WindowsBuiltInRole.Administrator);
+#endif
         }
 
         public bool SetPowerPlan(string profileId)
         {
-            string guid = profileId switch
+            try
             {
-                "balanced" => "381b4222-f694-41f0-9685-ff5bb260df2e",
-                "high" => "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
-                _ => throw new ArgumentException("Invalid profile")
-            };
+                string guid = profileId switch
+                {
+                    "balanced" => "381b4222-f694-41f0-9685-ff5bb260df2e",
+                    "high" => "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c",
+                    _ => throw new ArgumentException($"Invalid profile: {profileId}")
+                };
 
-            return RunPowerCfg(guid);
+                return RunPowerCfg(guid);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Pulse Warning] Power plan failed: {ex.Message}");
+                return false;
+            }
         }
 
         private bool RunPowerCfg(string guid)
@@ -44,12 +51,23 @@ namespace Pulse.Backend.Services
                 };
 
                 using var process = Process.Start(psi);
+
+                if (process == null)
+                    return false;
+
                 process.WaitForExit();
+
+                if (process.ExitCode != 0)
+                {
+                    var error = process.StandardError.ReadToEnd();
+                    Console.WriteLine($"[Pulse Warning] powercfg error: {error}");
+                }
 
                 return process.ExitCode == 0;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[Pulse Warning] powercfg execution failed: {ex.Message}");
                 return false;
             }
         }

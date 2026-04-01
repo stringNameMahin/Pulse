@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace Pulse.Backend.Services
 {
@@ -17,11 +16,13 @@ namespace Pulse.Backend.Services
                 if (name.Contains("electron") || name.Contains("pulse"))
                     return;
 
+                if (process.HasExited)
+                    return;
+
                 if (process.MainWindowHandle == IntPtr.Zero)
                     return;
 
                 int coreCount = Environment.ProcessorCount;
-
                 int coresToUse = coreCount;
 
                 if (profileId == "balanced")
@@ -33,8 +34,8 @@ namespace Pulse.Backend.Services
                     coresToUse = coreCount / 2;
                 }
 
-                coresToUse = Math.Max(coresToUse, 2);
-                coresToUse = Math.Min(coresToUse, coreCount);
+                coresToUse = Math.Max(2, coresToUse);
+                coresToUse = Math.Min(coreCount, coresToUse);
 
                 long mask = 0;
 
@@ -50,7 +51,7 @@ namespace Pulse.Backend.Services
 
                 process.ProcessorAffinity = desiredMask;
 
-                Console.WriteLine($"[Pulse] Affinity → {process.ProcessName} using {coresToUse}/{coreCount} cores");
+                Console.WriteLine($"[Pulse] Affinity → {process.ProcessName} ({coresToUse}/{coreCount} cores)");
             }
             catch (Exception ex)
             {

@@ -1,7 +1,7 @@
-﻿namespace Pulse.Backend.Services
-{
-    using System.Diagnostics;
+﻿using System.Diagnostics;
 
+namespace Pulse.Backend.Services
+{
     public class UserPriorityService
     {
         private readonly List<string> _priorityApps = new();
@@ -17,7 +17,6 @@
                 if (string.IsNullOrWhiteSpace(app)) continue;
 
                 var normalized = app.ToLower().Trim();
-
                 var resolved = ResolveProcessName(normalized);
 
                 if (!_priorityApps.Contains(resolved))
@@ -29,7 +28,7 @@
             Console.WriteLine($"[Pulse] Priority apps updated: {string.Join(", ", _priorityApps)}");
         }
 
-        public string ResolveProcessName(string input)
+        private string ResolveProcessName(string input)
         {
             var query = input.ToLower().Trim();
 

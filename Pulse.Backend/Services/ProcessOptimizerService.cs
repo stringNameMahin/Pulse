@@ -1,5 +1,4 @@
-﻿
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Pulse.Backend.Services
@@ -25,8 +24,9 @@ namespace Pulse.Backend.Services
 
                 return Process.GetProcessById((int)pid);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[Pulse Warning] Foreground detection failed: {ex.Message}");
                 return null;
             }
         }
@@ -43,6 +43,9 @@ namespace Pulse.Backend.Services
                 if (name.Contains("electron") || name.Contains("pulse"))
                     return;
 
+                if (process.HasExited)
+                    return;
+
                 var desiredPriority = profileId == "high"
                     ? ProcessPriorityClass.AboveNormal
                     : ProcessPriorityClass.Normal;
@@ -52,7 +55,7 @@ namespace Pulse.Backend.Services
 
                 process.PriorityClass = desiredPriority;
 
-                Console.WriteLine($"[Pulse] Optimized foreground process: {process.ProcessName}");
+                Console.WriteLine($"[Pulse] Priority → {process.ProcessName} ({desiredPriority})");
             }
             catch (Exception ex)
             {

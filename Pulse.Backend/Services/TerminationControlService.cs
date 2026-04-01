@@ -2,7 +2,7 @@
 {
     public class TerminationControlService
     {
-        private string _mode = "safe"; // safe | smart | aggressive
+        private string _mode = "safe";
 
         public string GetMode() => _mode;
 

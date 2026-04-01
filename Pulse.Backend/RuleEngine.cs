@@ -1,4 +1,5 @@
 ﻿using Pulse.Backend.Services;
+using System.Data;
 using System.Diagnostics;
 using System.Text.Json;
 
@@ -72,7 +73,10 @@ namespace Pulse.Backend
             try
             {
                 if (!File.Exists(_filePath))
+                {
+                    _rules = new List<Rule>();
                     return;
+                }
 
                 var json = File.ReadAllText(_filePath);
                 var data = JsonSerializer.Deserialize<List<Rule>>(json);
@@ -90,13 +94,12 @@ namespace Pulse.Backend
                     _rules = data;
                 }
 
-                SaveRules();
-
                 Console.WriteLine($"[Pulse] Loaded {_rules.Count} rules");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[Pulse Warning] Failed to load rules: {ex.Message}");
+                _rules = new List<Rule>();
             }
         }
 
@@ -116,35 +119,44 @@ namespace Pulse.Backend
                 Console.WriteLine($"[Pulse Warning] Failed to save rules: {ex.Message}");
             }
         }
-
-        public void SaveAfterExternalChange()
-        {
-            SaveRules();
-        }
-
+        private DateTime _lastTriggerTime = DateTime.MinValue;
+        private string _lastTriggeredProcess = "";
+        private bool _actionConsumed = true;
         public string DecideProfile()
         {
-            var running = Process.GetProcesses()
-                .Select(p => p.ProcessName.ToLower())
-                .ToHashSet();
+            var running = GetRunningProcesses();
 
             foreach (var rule in _rules)
             {
                 if (running.Contains(rule.TriggerProcess))
                 {
+                    if (_lastTriggeredProcess == rule.TriggerProcess &&
+                        (DateTime.Now - _lastTriggerTime).TotalSeconds < 5)
+                    {
+                        return _monitoring.IsHeavyLoad() ? "high" : "balanced";
+                    }
+
+                    _lastTriggeredProcess = rule.TriggerProcess;
+                    _lastTriggerTime = DateTime.Now;
+                    _actionConsumed = false;
+
                     Console.WriteLine($"[Pulse] Rule triggered: {rule.TriggerProcess}");
                     return rule.TargetProfile;
                 }
             }
 
+            _actionConsumed = true;
             return _monitoring.IsHeavyLoad() ? "high" : "balanced";
         }
 
         public List<string> GetAppsToClose()
         {
-            var running = Process.GetProcesses()
-                .Select(p => p.ProcessName.ToLower())
-                .ToHashSet();
+            if (_actionConsumed)
+                return new List<string>();
+
+            _actionConsumed = true;
+
+            var running = GetRunningProcesses();
 
             foreach (var rule in _rules)
             {
@@ -157,6 +169,22 @@ namespace Pulse.Backend
             return new List<string>();
         }
 
+        // HELPERS
+        private HashSet<string> GetRunningProcesses()
+        {
+            var set = new HashSet<string>();
+
+            foreach (var process in Process.GetProcesses())
+            {
+                try
+                {
+                    set.Add(process.ProcessName.ToLower());
+                }
+                catch { }
+            }
+
+            return set;
+        }
 
         private void NormalizeRule(Rule rule)
         {
@@ -180,5 +208,6 @@ namespace Pulse.Backend
                    a.TargetProfile == b.TargetProfile &&
                    new HashSet<string>(a.CloseApps).SetEquals(b.CloseApps);
         }
+
     }
 }

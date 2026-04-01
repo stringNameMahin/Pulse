@@ -1,10 +1,10 @@
-﻿namespace Pulse.Backend.Services
-{
-    using System.Diagnostics;
+﻿using System.Diagnostics;
 
+namespace Pulse.Backend.Services
+{
     public class MonitoringService
     {
-        private const long memoryThresholdMb = 500;
+        private const long MemoryThresholdMb = 500;
 
         public bool IsHeavyLoad()
         {
@@ -14,17 +14,20 @@
                 {
                     double memoryMb = process.WorkingSet64 / (1024.0 * 1024.0);
 
-                    if (memoryMb >= memoryThresholdMb)
+                    if (memoryMb >= MemoryThresholdMb)
                         return true;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Pulse Warning] Monitoring failed: {ex.Message}");
+                }
             }
 
             return false;
         }
+
         public List<Process> GetHeavyProcesses()
         {
-            const long memoryThresholdMb = 500;
             var heavy = new List<Process>();
 
             foreach (var process in Process.GetProcesses())
@@ -33,10 +36,13 @@
                 {
                     double memoryMb = process.WorkingSet64 / (1024.0 * 1024.0);
 
-                    if (memoryMb >= memoryThresholdMb)
+                    if (memoryMb >= MemoryThresholdMb)
                         heavy.Add(process);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Pulse Warning] Monitoring failed: {ex.Message}");
+                }
             }
 
             return heavy;
